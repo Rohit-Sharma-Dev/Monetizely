@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  id        String    @id @default(cuid())
+  name      String
+  tiers     Tier[]
+  features  Feature[]
+  createdAt DateTime  @default(now())
+}
+
+model Tier {
+  id               String          @id @default(cuid())
+  productId        String
+  name             String
+  basePricePerSeat Float
+  product          Product         @relation(fields: [productId], references: [id])
+  featureConfigs   FeatureConfig[]
+  quotes           Quote[]
+
+  @@unique([productId, name])
+}
+
+model Feature {
+  id             String          @id @default(cuid())
+  productId      String
+  name           String
+  product        Product         @relation(fields: [productId], references: [id])
+  featureConfigs FeatureConfig[]
+
+  @@unique([productId, name])
+}
+
+model FeatureConfig {
+  id           String        @id @default(cuid())
+  tierId       String
+  featureId    String
+  status       ConfigStatus
+  pricingModel PricingModel?
+  priceValue   Float?
+  tier         Tier          @relation(fields: [tierId], references: [id])
+  feature      Feature       @relation(fields: [featureId], references: [id])
+
+  @@unique([tierId, featureId])
+}
+
+model Quote {
+  id          String          @id @default(cuid())
+  name        String
+  customer    String
+  tierId      String
+  seats       Int
+  termLength  TermLength
+  discountPct Float           @default(0)
+  totalAmount Float
+  createdAt   DateTime        @default(now())
+  validUntil  DateTime
+  tier        Tier            @relation(fields: [tierId], references: [id])
+  lineItems   QuoteLineItem[]
+  addons      QuoteAddon[]
+}
+
+model QuoteLineItem {
+  id          String @id @default(cuid())
+  quoteId     String
+  label       String
+  calculation String
+  notes       String @default("")
+  amount      Float
+  sortOrder   Int    @default(0)
+  quote       Quote  @relation(fields: [quoteId], references: [id])
+}
+
+model QuoteAddon {
+  id              String @id @default(cuid())
+  quoteId         String
+  featureConfigId String
+  featureName     String
+  seats           Int?
+  amount          Float
+  calculation     String
+  quote           Quote  @relation(fields: [quoteId], references: [id])
+}
+
+enum ConfigStatus {
+  INCLUDED
+  ADDON
+  UNAVAILABLE
+}
+
+enum PricingModel {
+  FIXED
+  PER_SEAT
+  PERCENT
+}
+
+enum TermLength {
+  MONTHLY
+  ANNUAL
+  TWO_YEAR
+}
